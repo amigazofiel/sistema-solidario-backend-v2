@@ -3,6 +3,9 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const pool = require("./db/pool");
 
+// ✅ Log para ver si Railway realmente está pasando la variable
+console.log("DATABASE_URL en runtime:", process.env.DATABASE_URL);
+
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
