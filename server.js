@@ -1,9 +1,10 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const fetch = require("node-fetch"); // npm install node-fetch
 const pool = require("./db/pool");
 
-// ✅ Log para ver si Railway realmente está pasando la variable
+// ✅ Log para verificar conexión a Railway
 console.log("DATABASE_URL en runtime:", process.env.DATABASE_URL);
 
 const app = express();
@@ -75,6 +76,80 @@ app.get("/init-db", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).send("❌ Error creando tablas.");
+  }
+});
+
+// =======================
+// ✅ Endpoint para registrar usuarios
+// =======================
+app.post("/api/registro", async (req, res) => {
+  const { nombre, email, referido_por } = req.body;
+
+  if (!nombre || !email) {
+    return res.status(400).json({ error: "Nombre y email son obligatorios." });
+  }
+
+  try {
+    // ✅ 1. Crear usuario en la base de datos
+    const nuevoUsuario = await pool.query(
+      `INSERT INTO usuarios (nombre, email, referido_por)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [nombre, email, referido_por || null]
+    );
+
+    const usuarioId = nuevoUsuario.rows[0].id;
+
+    // ✅ 2. Registrar referido si corresponde
+    if (referido_por) {
+      await pool.query(
+        `INSERT INTO referidos (usuario_id, referido_id)
+         VALUES ($1, $2)`,
+        [referido_por, usuarioId]
+      );
+    }
+
+    // ✅ 3. Enviar usuario a MailerLite
+    const apiKey = process.env.MAILERLITE_API_KEY;
+    const groupId = process.env.MAILERLITE_GROUP_ID;
+
+    try {
+      const mlResponse = await fetch(`https://connect.mailerlite.com/api/groups/${groupId}/subscribers`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          email: email,
+          name: nombre
+        })
+      });
+
+      if (!mlResponse.ok) {
+        const errorData = await mlResponse.json();
+        console.error("Error en MailerLite:", errorData);
+      } else {
+        const mlData = await mlResponse.json();
+        console.log("Usuario agregado a MailerLite:", mlData);
+      }
+    } catch (mlError) {
+      console.error("❌ Error conectando con MailerLite:", mlError);
+    }
+
+    res.json({
+      mensaje: "✅ Usuario registrado correctamente y enviado a MailerLite.",
+      usuario_id: usuarioId,
+    });
+
+  } catch (error) {
+    console.error("Error registrando usuario:", error);
+
+    if (error.code === "23505") {
+      return res.status(400).json({ error: "El email ya está registrado." });
+    }
+
+    res.status(500).json({ error: "Error interno del servidor." });
   }
 });
 
