@@ -1,162 +1,84 @@
+// server.js
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const fetch = require("node-fetch"); // npm install node-fetch
-const pool = require("./db/pool");
-
-// ✅ Log para verificar conexión a Railway
-console.log("DATABASE_URL en runtime:", process.env.DATABASE_URL);
+const { Pool } = require("pg");
+const fetch = require("node-fetch");
 
 const app = express();
+const PORT = process.env.PORT || 10000;
+
+// Middlewares
 app.use(cors());
 app.use(bodyParser.json());
 
-// =======================
+// Base de datos
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
 // Endpoint raíz
-// =======================
 app.get("/", (req, res) => {
   res.send("Backend Sistema Solidario V2 activo.");
 });
 
-// =======================
-// Endpoint para crear tablas automáticamente
-// =======================
-app.get("/init-db", async (req, res) => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS usuarios (
-        id SERIAL PRIMARY KEY,
-        nombre VARCHAR(100),
-        email VARCHAR(200) UNIQUE,
-        password VARCHAR(200),
-        referido_por INTEGER,
-        fecha_registro TIMESTAMP DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS referidos (
-        id SERIAL PRIMARY KEY,
-        usuario_id INTEGER,
-        referido_id INTEGER,
-        fecha TIMESTAMP DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS suscripciones (
-        id SERIAL PRIMARY KEY,
-        usuario_id INTEGER,
-        estado VARCHAR(50),
-        fecha_inicio TIMESTAMP DEFAULT NOW(),
-        fecha_fin TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS pagos (
-        id SERIAL PRIMARY KEY,
-        usuario_id INTEGER,
-        monto NUMERIC,
-        fecha TIMESTAMP DEFAULT NOW(),
-        tipo VARCHAR(50)
-      );
-
-      CREATE TABLE IF NOT EXISTS comisiones (
-        id SERIAL PRIMARY KEY,
-        usuario_id INTEGER,
-        referido_id INTEGER,
-        monto NUMERIC,
-        fecha TIMESTAMP DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS actividad (
-        id SERIAL PRIMARY KEY,
-        usuario_id INTEGER,
-        descripcion TEXT,
-        fecha TIMESTAMP DEFAULT NOW()
-      );
-    `);
-
-    res.send("✅ Tablas creadas correctamente.");
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("❌ Error creando tablas.");
-  }
-});
-
-// =======================
-// ✅ Endpoint para registrar usuarios
-// =======================
+// Endpoint de registro
 app.post("/api/registro", async (req, res) => {
   const { nombre, email, referido_por } = req.body;
 
-  if (!nombre || !email) {
-    return res.status(400).json({ error: "Nombre y email son obligatorios." });
-  }
-
   try {
-    // ✅ 1. Crear usuario en la base de datos
-    const nuevoUsuario = await pool.query(
-      `INSERT INTO usuarios (nombre, email, referido_por)
-       VALUES ($1, $2, $3)
-       RETURNING id`,
-      [nombre, email, referido_por || null]
+    // Guardar usuario en la base de datos
+    const result = await pool.query(
+      "INSERT INTO usuarios (nombre, email) VALUES ($1, $2) RETURNING id",
+      [nombre, email]
     );
+    const usuarioId = result.rows[0].id;
 
-    const usuarioId = nuevoUsuario.rows[0].id;
-
-    // ✅ 2. Registrar referido si corresponde
+    // Si tiene referido, guardar relación
     if (referido_por) {
       await pool.query(
-        `INSERT INTO referidos (usuario_id, referido_id)
-         VALUES ($1, $2)`,
-        [referido_por, usuarioId]
+        "INSERT INTO referidos (usuario_id, referido_por) VALUES ($1, $2)",
+        [usuarioId, referido_por]
       );
     }
 
-    // ✅ 3. Enviar usuario a MailerLite
+    // Enviar a MailerLite
+    const groupId = process.env.MAILERLITE_GROUP_ID; // tu grupo en MailerLite
     const apiKey = process.env.MAILERLITE_API_KEY;
-    const groupId = process.env.MAILERLITE_GROUP_ID;
 
-    try {
-      const mlResponse = await fetch(`https://connect.mailerlite.com/api/groups/${groupId}/subscribers`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          email: email,
-          name: nombre
-        })
-      });
+    const response = await fetch("https://connect.mailerlite.com/api/subscribers", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        email,
+        fields: { name: nombre },
+        groups: [groupId]
+      })
+    });
 
-      if (!mlResponse.ok) {
-        const errorData = await mlResponse.json();
-        console.error("Error en MailerLite:", errorData);
-      } else {
-        const mlData = await mlResponse.json();
-        console.log("Usuario agregado a MailerLite:", mlData);
-      }
-    } catch (mlError) {
-      console.error("❌ Error conectando con MailerLite:", mlError);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error en MailerLite:", errorData);
+    } else {
+      const data = await response.json();
+      console.log("Usuario agregado a MailerLite:", data);
     }
 
     res.json({
       mensaje: "✅ Usuario registrado correctamente y enviado a MailerLite.",
-      usuario_id: usuarioId,
+      usuario_id: usuarioId
     });
-
   } catch (error) {
-    console.error("Error registrando usuario:", error);
-
-    if (error.code === "23505") {
-      return res.status(400).json({ error: "El email ya está registrado." });
-    }
-
-    res.status(500).json({ error: "Error interno del servidor." });
+    console.error("Error en /api/registro:", error);
+    res.status(500).json({ mensaje: "❌ Error al registrar usuario." });
   }
 });
 
-// =======================
-// Servidor
-// =======================
-const PORT = process.env.PORT || 3000;
+// Iniciar servidor
 app.listen(PORT, () => {
   console.log(`✅ Backend V2 corriendo en puerto ${PORT}`);
 });
