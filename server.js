@@ -25,13 +25,15 @@ app.get("/", (req, res) => {
 
 // Endpoint de registro
 app.post("/api/registro", async (req, res) => {
-  const { nombre, email, referido_por } = req.body;
+  const { nombre, email, referido_por, wallet_address } = req.body;
 
   try {
-    // Guardar usuario en la base de datos
+    // Guardar usuario en la base de datos con wallet_address
     const result = await pool.query(
-      "INSERT INTO usuarios (nombre, email) VALUES ($1, $2) RETURNING id",
-      [nombre, email]
+      `INSERT INTO usuarios (nombre, email, referido_por, fecha_registro, wallet_address)
+       VALUES ($1, $2, $3, NOW(), $4)
+       RETURNING id`,
+      [nombre, email, referido_por, wallet_address]
     );
     const usuarioId = result.rows[0].id;
 
