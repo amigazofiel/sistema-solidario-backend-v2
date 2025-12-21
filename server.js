@@ -38,13 +38,13 @@ app.post("/api/registro", async (req, res) => {
     // Si tiene referido, guardar relación
     if (referido_por) {
       await pool.query(
-        "INSERT INTO referidos (usuario_id, referido_por) VALUES ($1, $2)",
+        "INSERT INTO referidos (usuario_id, referido_id, fecha) VALUES ($1, $2, NOW())",
         [usuarioId, referido_por]
       );
     }
 
     // Enviar a MailerLite
-    const groupId = process.env.MAILERLITE_GROUP_ID; // tu grupo en MailerLite
+    const groupId = process.env.MAILERLITE_GROUP_ID;
     const apiKey = process.env.MAILERLITE_API_KEY;
 
     const response = await fetch("https://connect.mailerlite.com/api/subscribers", {
