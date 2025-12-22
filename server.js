@@ -37,12 +37,29 @@ app.post("/api/registro", async (req, res) => {
     );
     const usuarioId = result.rows[0].id;
 
-    // Si tiene referido, guardar relación
+    // Si tiene patrocinador, guardar relación y acreditar bonos
     if (referido_por) {
+      // Relación patrocinador → referido
       await pool.query(
         "INSERT INTO referidos (usuario_id, referido_id, fecha) VALUES ($1, $2, NOW())",
-        [usuarioId, referido_por]
+        [referido_por, usuarioId]
       );
+
+      // Bono directo 10 USDT al patrocinador
+      await pool.query(
+        `INSERT INTO pagos (usuario_id, monto, concepto, fecha)
+         VALUES ($1, 10, 'Bono directo por referido', NOW())`,
+        [referido_por]
+      );
+      console.log(`💰 Bono directo acreditado: 10 USDT al usuario ${referido_por}`);
+
+      // Bono fijo 5 USDT al sistema (usuario 12)
+      await pool.query(
+        `INSERT INTO pagos (usuario_id, monto, concepto, fecha)
+         VALUES ($1, 5, 'Bono fijo del sistema', NOW())`,
+        [12] // tu usuario oficial "Sistema Solidario"
+      );
+      console.log("💰 Bono fijo acreditado: 5 USDT al sistema (usuario 12)");
     }
 
     // Enviar a MailerLite
@@ -71,7 +88,7 @@ app.post("/api/registro", async (req, res) => {
     }
 
     res.json({
-      mensaje: "✅ Usuario registrado correctamente y enviado a MailerLite.",
+      mensaje: "✅ Usuario registrado correctamente, bonos acreditados y enviado a MailerLite.",
       usuario_id: usuarioId
     });
   } catch (error) {
