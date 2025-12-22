@@ -47,16 +47,16 @@ app.post("/api/registro", async (req, res) => {
 
       // Bono directo 10 USDT al patrocinador
       await pool.query(
-        `INSERT INTO pagos (usuario_id, monto, concepto, fecha)
-         VALUES ($1, 10, 'Bono directo por referido', NOW())`,
+        `INSERT INTO pagos (usuario_id, monto, fecha, tipo)
+         VALUES ($1, 10, NOW(), 'Bono directo por referido')`,
         [referido_por]
       );
       console.log(`💰 Bono directo acreditado: 10 USDT al usuario ${referido_por}`);
 
       // Bono fijo 5 USDT al sistema (usuario 12)
       await pool.query(
-        `INSERT INTO pagos (usuario_id, monto, concepto, fecha)
-         VALUES ($1, 5, 'Bono fijo del sistema', NOW())`,
+        `INSERT INTO pagos (usuario_id, monto, fecha, tipo)
+         VALUES ($1, 5, NOW(), 'Bono fijo del sistema')`,
         [12] // tu usuario oficial "Sistema Solidario"
       );
       console.log("💰 Bono fijo acreditado: 5 USDT al sistema (usuario 12)");
