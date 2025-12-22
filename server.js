@@ -92,8 +92,13 @@ app.post("/api/registro", async (req, res) => {
       usuario_id: usuarioId
     });
   } catch (error) {
-    console.error("Error en /api/registro:", error);
-    res.status(500).json({ mensaje: "❌ Error al registrar usuario." });
+    // Manejo específico de error de email duplicado
+    if (error.code === '23505') {
+      res.status(400).json({ mensaje: "❌ El email ya está registrado. Usa otro correo." });
+    } else {
+      console.error("Error en /api/registro:", error);
+      res.status(500).json({ mensaje: "❌ Error al registrar usuario." });
+    }
   }
 });
 
