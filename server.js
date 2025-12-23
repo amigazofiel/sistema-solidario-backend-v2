@@ -150,22 +150,20 @@ app.post("/api/pagos/registrar", async (req, res) => {
   const { usuario_id, monto, tx_hash } = req.body;
 
   try {
-    // Validar monto permitido
     if (monto !== 10 && monto !== 5) {
       return res.status(400).json({ mensaje: "❌ Monto inválido. Solo se permiten 10 o 5 USDT." });
     }
 
     const apiKey = process.env.BSCSCAN_API_KEY;
     const response = await fetch(
-      `https://api.etherscan.io/v2/transaction/${tx_hash}?chain=bsc&apikey=${apiKey}`
+      `https://api.etherscan.io/v2/api?chain=bsc&module=transaction&action=gettxinfo&txhash=${tx_hash}&apikey=${apiKey}`
     );
     const data = await response.json();
 
-    // Log para ver la respuesta completa de Etherscan V2
     console.log("Respuesta Etherscan V2:", data);
 
     let estado = "rechazado";
-    if (data.status && data.status === "1") {
+    if (data.result && data.result.status === "1") {
       estado = "confirmado";
     }
 
