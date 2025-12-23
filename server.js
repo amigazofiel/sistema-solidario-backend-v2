@@ -161,6 +161,9 @@ app.post("/api/pagos/registrar", async (req, res) => {
     );
     const data = await response.json();
 
+    // Log para ver la respuesta completa de BscScan
+    console.log("Respuesta BscScan:", data);
+
     let estado = "rechazado";
     if (data.result && data.result.status === "1") {
       estado = "confirmado";
