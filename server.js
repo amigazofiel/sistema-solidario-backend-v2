@@ -157,7 +157,7 @@ app.post("/api/pagos/registrar", async (req, res) => {
 
     const apiKey = process.env.BSCSCAN_API_KEY;
     const response = await fetch(
-      `https://api.bscscan.com/api?module=transaction&action=gettxinfo&txhash=${tx_hash}&apikey=${apiKey}`
+      `https://api.bscscan.com/api?module=transaction&action=gettxreceiptstatus&txhash=${tx_hash}&apikey=${apiKey}`
     );
     const data = await response.json();
 
@@ -176,6 +176,21 @@ app.post("/api/pagos/registrar", async (req, res) => {
   } catch (error) {
     console.error("Error en /api/pagos/registrar:", error);
     res.status(500).json({ mensaje: "❌ Error al registrar pago." });
+  }
+});
+
+// Endpoint pagos: consultar historial por usuario
+app.get("/api/pagos/:usuario_id", async (req, res) => {
+  const { usuario_id } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT * FROM pagos WHERE usuario_id = $1 ORDER BY fecha DESC",
+      [usuario_id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error en /api/pagos:", error);
+    res.status(500).json({ mensaje: "❌ Error al obtener pagos." });
   }
 });
 
