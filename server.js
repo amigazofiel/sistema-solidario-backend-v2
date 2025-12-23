@@ -155,10 +155,18 @@ app.post("/api/pagos/registrar", async (req, res) => {
     }
 
     const apiKey = process.env.BSCSCAN_API_KEY;
-    const response = await fetch(
-      `https://api.etherscan.io/v2/api?chain=bsc&module=transaction&action=gettxinfo&txhash=${tx_hash}&apikey=${apiKey}`
-    );
-    const data = await response.json();
+    const url = `https://api.etherscan.io/v2/api?chain=bsc&module=transaction&action=gettxinfo&txhash=${tx_hash}&apikey=${apiKey}`;
+    const response = await fetch(url);
+
+    // Manejo seguro de respuesta
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      console.error("Respuesta no es JSON válido:", text.slice(0, 200));
+      return res.status(500).json({ mensaje: "❌ Respuesta inválida de la API blockchain." });
+    }
 
     console.log("Respuesta Etherscan V2:", data);
 
