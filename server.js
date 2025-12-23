@@ -162,7 +162,7 @@ app.post("/api/pagos/registrar", async (req, res) => {
     const data = await response.json();
 
     let estado = "rechazado";
-    if (data.status === "1") {
+    if (data.result && data.result.status === "1") {
       estado = "confirmado";
     }
 
