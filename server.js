@@ -145,7 +145,7 @@ app.post("/api/suscripciones/vencer", async (req, res) => {
   }
 });
 
-// Endpoint pagos: registrar con verificación blockchain (API V2)
+// Endpoint pagos: registrar con verificación blockchain (API V2 multichain)
 app.post("/api/pagos/registrar", async (req, res) => {
   const { usuario_id, monto, tx_hash } = req.body;
 
@@ -157,12 +157,12 @@ app.post("/api/pagos/registrar", async (req, res) => {
 
     const apiKey = process.env.BSCSCAN_API_KEY;
     const response = await fetch(
-      `https://api.bscscan.com/v2/transaction/${tx_hash}?apikey=${apiKey}`
+      `https://api.etherscan.io/v2/transaction/${tx_hash}?chain=bsc&apikey=${apiKey}`
     );
     const data = await response.json();
 
-    // Log para ver la respuesta completa de BscScan V2
-    console.log("Respuesta BscScan V2:", data);
+    // Log para ver la respuesta completa de Etherscan V2
+    console.log("Respuesta Etherscan V2:", data);
 
     let estado = "rechazado";
     if (data.status && data.status === "1") {
