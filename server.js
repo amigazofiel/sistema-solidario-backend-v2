@@ -28,7 +28,6 @@ app.post("/api/registro", async (req, res) => {
   const { nombre, email, referido_por, wallet_address } = req.body;
 
   try {
-    // Guardar usuario en la base de datos con wallet_address
     const result = await pool.query(
       `INSERT INTO usuarios (nombre, email, referido_por, fecha_registro, wallet_address)
        VALUES ($1, $2, $3, NOW(), $4)
@@ -37,15 +36,12 @@ app.post("/api/registro", async (req, res) => {
     );
     const usuarioId = result.rows[0].id;
 
-    // Si tiene patrocinador, guardar relación y acreditar bonos
     if (referido_por) {
-      // Relación patrocinador → referido
       await pool.query(
         "INSERT INTO referidos (usuario_id, referido_id, fecha) VALUES ($1, $2, NOW())",
         [referido_por, usuarioId]
       );
 
-      // Bono directo 10 USDT al patrocinador
       await pool.query(
         `INSERT INTO pagos (usuario_id, monto, fecha, tipo)
          VALUES ($1, 10, NOW(), 'Bono directo por referido')`,
@@ -53,16 +49,14 @@ app.post("/api/registro", async (req, res) => {
       );
       console.log(`💰 Bono directo acreditado: 10 USDT al usuario ${referido_por}`);
 
-      // Bono fijo 5 USDT al sistema (usuario 12)
       await pool.query(
         `INSERT INTO pagos (usuario_id, monto, fecha, tipo)
          VALUES ($1, 5, NOW(), 'Bono fijo del sistema')`,
-        [12] // tu usuario oficial "Sistema Solidario"
+        [12]
       );
       console.log("💰 Bono fijo acreditado: 5 USDT al sistema (usuario 12)");
     }
 
-    // Enviar a MailerLite
     const groupId = process.env.MAILERLITE_GROUP_ID;
     const apiKey = process.env.MAILERLITE_API_KEY;
 
@@ -92,13 +86,62 @@ app.post("/api/registro", async (req, res) => {
       usuario_id: usuarioId
     });
   } catch (error) {
-    // Manejo específico de error de email duplicado
     if (error.code === '23505') {
       res.status(400).json({ mensaje: "❌ El email ya está registrado. Usa otro correo." });
     } else {
       console.error("Error en /api/registro:", error);
       res.status(500).json({ mensaje: "❌ Error al registrar usuario." });
     }
+  }
+});
+
+// Endpoint suscripciones: activar
+app.post("/api/suscripciones/activar", async (req, res) => {
+  const { usuario_id } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO suscripciones (user_id, start_date, end_date, status)
+       VALUES ($1, NOW(), NOW() + interval '30 days', 'active')`,
+      [usuario_id]
+    );
+    res.json({ mensaje: "✅ Suscripción activada." });
+  } catch (error) {
+    console.error("Error en /api/suscripciones/activar:", error);
+    res.status(500).json({ mensaje: "❌ Error al activar suscripción." });
+  }
+});
+
+// Endpoint suscripciones: renovar
+app.post("/api/suscripciones/renovar", async (req, res) => {
+  const { usuario_id } = req.body;
+  try {
+    await pool.query(
+      `UPDATE suscripciones
+       SET end_date = end_date + interval '30 days', status = 'active'
+       WHERE user_id = $1 AND status = 'active'`,
+      [usuario_id]
+    );
+    res.json({ mensaje: "✅ Suscripción renovada." });
+  } catch (error) {
+    console.error("Error en /api/suscripciones/renovar:", error);
+    res.status(500).json({ mensaje: "❌ Error al renovar suscripción." });
+  }
+});
+
+// Endpoint suscripciones: vencer
+app.post("/api/suscripciones/vencer", async (req, res) => {
+  const { usuario_id } = req.body;
+  try {
+    await pool.query(
+      `UPDATE suscripciones
+       SET status = 'expired'
+       WHERE user_id = $1 AND end_date < NOW()`,
+      [usuario_id]
+    );
+    res.json({ mensaje: "✅ Suscripción marcada como vencida." });
+  } catch (error) {
+    console.error("Error en /api/suscripciones/vencer:", error);
+    res.status(500).json({ mensaje: "❌ Error al vencer suscripción." });
   }
 });
 
