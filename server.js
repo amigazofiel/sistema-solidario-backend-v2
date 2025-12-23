@@ -145,6 +145,35 @@ app.post("/api/suscripciones/vencer", async (req, res) => {
   }
 });
 
+// Endpoint pagos: registrar con verificación blockchain
+app.post("/api/pagos/registrar", async (req, res) => {
+  const { usuario_id, monto, tx_hash } = req.body;
+
+  try {
+    const apiKey = process.env.BSCSCAN_API_KEY;
+    const response = await fetch(
+      `https://api.bscscan.com/api?module=transaction&action=gettxinfo&txhash=${tx_hash}&apikey=${apiKey}`
+    );
+    const data = await response.json();
+
+    let estado = "rechazado";
+    if (data.status === "1") {
+      estado = "confirmado";
+    }
+
+    await pool.query(
+      `INSERT INTO pagos (usuario_id, monto, fecha, tipo, tx_hash, estado)
+       VALUES ($1, $2, NOW(), 'Transacción blockchain', $3, $4)`,
+      [usuario_id, monto, tx_hash, estado]
+    );
+
+    res.json({ mensaje: "✅ Pago registrado.", estado });
+  } catch (error) {
+    console.error("Error en /api/pagos/registrar:", error);
+    res.status(500).json({ mensaje: "❌ Error al registrar pago." });
+  }
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`✅ Backend V2 corriendo en puerto ${PORT}`);
