@@ -158,7 +158,6 @@ app.post("/api/pagos/registrar", async (req, res) => {
     const url = `https://api.etherscan.io/v2/api?chain=bsc&module=transaction&action=gettxinfo&txhash=${tx_hash}&apikey=${apiKey}`;
     const response = await fetch(url);
 
-    // Manejo seguro de respuesta
     const text = await response.text();
     let data;
     try {
@@ -171,7 +170,7 @@ app.post("/api/pagos/registrar", async (req, res) => {
     console.log("Respuesta Etherscan V2:", data);
 
     let estado = "rechazado";
-    if (data.result && data.result.status === "1") {
+    if ((data.status && data.status === "1") || (data.result && data.result.isError === "0")) {
       estado = "confirmado";
     }
 
