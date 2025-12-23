@@ -100,8 +100,8 @@ app.post("/api/suscripciones/activar", async (req, res) => {
   const { usuario_id } = req.body;
   try {
     await pool.query(
-      `INSERT INTO suscripciones (user_id, start_date, end_date, status)
-       VALUES ($1, NOW(), NOW() + interval '30 days', 'active')`,
+      `INSERT INTO suscripciones (usuario_id, estado, fecha_inicio, fecha_fin)
+       VALUES ($1, 'active', NOW(), NOW() + interval '30 days')`,
       [usuario_id]
     );
     res.json({ mensaje: "✅ Suscripción activada." });
@@ -117,8 +117,8 @@ app.post("/api/suscripciones/renovar", async (req, res) => {
   try {
     await pool.query(
       `UPDATE suscripciones
-       SET end_date = end_date + interval '30 days', status = 'active'
-       WHERE user_id = $1 AND status = 'active'`,
+       SET fecha_fin = fecha_fin + interval '30 days', estado = 'active'
+       WHERE usuario_id = $1 AND estado = 'active'`,
       [usuario_id]
     );
     res.json({ mensaje: "✅ Suscripción renovada." });
@@ -134,8 +134,8 @@ app.post("/api/suscripciones/vencer", async (req, res) => {
   try {
     await pool.query(
       `UPDATE suscripciones
-       SET status = 'expired'
-       WHERE user_id = $1 AND end_date < NOW()`,
+       SET estado = 'expired'
+       WHERE usuario_id = $1 AND fecha_fin < NOW()`,
       [usuario_id]
     );
     res.json({ mensaje: "✅ Suscripción marcada como vencida." });
