@@ -155,7 +155,7 @@ app.post("/api/pagos/registrar", async (req, res) => {
     }
 
     const apiKey = process.env.BSCSCAN_API_KEY;
-    const url = `https://api.etherscan.io/v2/api?chain=bsc&module=transaction&action=gettxinfo&txhash=${tx_hash}&apikey=${apiKey}`;
+    const url = `https://api.etherscan.io/v2/api?chainid=56&module=transaction&action=gettxinfo&txhash=${tx_hash}&apikey=${apiKey}`;
     const response = await fetch(url);
 
     const text = await response.text();
