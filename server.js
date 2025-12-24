@@ -145,7 +145,7 @@ app.post("/api/suscripciones/vencer", async (req, res) => {
   }
 });
 
-// Endpoint pagos: registrar con verificación blockchain (API V2 multichain)
+// Endpoint pagos: registrar con verificación blockchain (Polygon)
 app.post("/api/pagos/registrar", async (req, res) => {
   const { usuario_id, monto, tx_hash } = req.body;
 
@@ -154,9 +154,8 @@ app.post("/api/pagos/registrar", async (req, res) => {
       return res.status(400).json({ mensaje: "❌ Monto inválido. Solo se permiten 10 o 5 USDT." });
     }
 
-    const apiKey = process.env.BSCSCAN_API_KEY;
-    // ✅ URL corregida con chainid=56
-    const url = `https://api.etherscan.io/v2/api?chainid=56&module=transaction&action=gettxinfo&txhash=${tx_hash}&apikey=${apiKey}`;
+    const apiKey = process.env.POLYGONSCAN_API_KEY;
+    const url = `https://api.polygonscan.com/api?module=transaction&action=gettxreceiptstatus&txhash=${tx_hash}&apikey=${apiKey}`;
     const response = await fetch(url);
 
     const text = await response.text();
@@ -168,10 +167,10 @@ app.post("/api/pagos/registrar", async (req, res) => {
       return res.status(500).json({ mensaje: "❌ Respuesta inválida de la API blockchain." });
     }
 
-    console.log("Respuesta Etherscan V2:", data);
+    console.log("Respuesta Polygonscan:", data);
 
     let estado = "rechazado";
-    if ((data.status && data.status === "1") || (data.result && data.result.isError === "0")) {
+    if (data.status === "1" || (data.result && data.result.status === "1")) {
       estado = "confirmado";
     }
 
