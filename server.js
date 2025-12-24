@@ -155,6 +155,7 @@ app.post("/api/pagos/registrar", async (req, res) => {
     }
 
     const apiKey = process.env.BSCSCAN_API_KEY;
+    // ✅ URL corregida con chainid=56
     const url = `https://api.etherscan.io/v2/api?chainid=56&module=transaction&action=gettxinfo&txhash=${tx_hash}&apikey=${apiKey}`;
     const response = await fetch(url);
 
